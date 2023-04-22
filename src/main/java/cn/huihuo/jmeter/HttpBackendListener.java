@@ -1,19 +1,22 @@
 package cn.huihuo.jmeter;
 
+import org.apache.jmeter.samplers.SampleResult;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import okhttp3.*;
+import com.mashape.unirest.http.HttpResponse;
+import com.mashape.unirest.http.JsonNode;
+import com.mashape.unirest.http.Unirest;
+//import okhttp3.*;
+import com.mashape.unirest.http.exceptions.UnirestException;
 import org.apache.jmeter.assertions.AssertionResult;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.protocol.http.sampler.HTTPSampleResult;
-import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.visualizers.backend.AbstractBackendListenerClient;
 import org.apache.jmeter.visualizers.backend.BackendListenerContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -34,6 +37,10 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
     private ArrayList<TestCaseInfo> testCases;
 
     private Integer countSuccess;
+
+    private List<String> labelPrefix = new ArrayList<String>();
+
+    private Integer currentDeep = 0;
 
     @Override
     public void setupTest(BackendListenerContext context) throws Exception {
@@ -74,15 +81,39 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
         log.info(" ---- Test End ---- ");
     }
 
-    @Override
-    public void handleSampleResults(List<SampleResult> sampleResults, BackendListenerContext backendListenerContext) {
 
-        for (SampleResult sampleResult : sampleResults) {
+    public void handlerResult(SampleResult sampleResult) {
+        Class<? extends SampleResult> aClass = sampleResult.getClass();
+        if (!aClass.getName().contains("http.sampler")) {
+            log.info("非http请求：" + sampleResult.getSampleLabel());
+            this.labelPrefix.add(sampleResult.getSampleLabel());
+            SampleResult[] subResults = sampleResult.getSubResults();
+            log.info(sampleResult.getSubResults().toString());
+            log.info(String.valueOf(subResults.length));
+            if (subResults.length != 0) {
+                for (SampleResult result : subResults) {
+                    log.info("---" + result.getSampleLabel());
+                    this.currentDeep += 1;
+                    handlerResult(result);
+                    this.currentDeep -= 1;
+                }
+            } else {
+                log.info("非事务控制器：" + sampleResult.getSampleLabel());
+            }
+
+        } else {
+            log.info("---" + this.labelPrefix);
             TestCaseInfo tc = new TestCaseInfo();
             HTTPSampleResult httpSampleResult = (HTTPSampleResult) sampleResult;
 
+            if (this.labelPrefix.size() != 0) {
+                String prefix = String.join("-", this.labelPrefix.subList(0, this.currentDeep));
+                tc.setCaseName(prefix.concat("-").concat(httpSampleResult.getSampleLabel()).toString());
+            } else {
+                tc.setCaseName(httpSampleResult.getSampleLabel());
+            }
+
             tc.setModuleName(httpSampleResult.getThreadName().split(" ")[0]);
-            tc.setCaseName(httpSampleResult.getSampleLabel());
             tc.setStartTime(httpSampleResult.getStartTime());
             tc.setEndTime(httpSampleResult.getEndTime());
 
@@ -115,7 +146,15 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
 
             this.testCases.add(tc);
         }
+    }
 
+
+    @Override
+    public void handleSampleResults(List<SampleResult> sampleResults, BackendListenerContext backendListenerContext) {
+        for (SampleResult sampleResult : sampleResults) {
+            handlerResult(sampleResult);
+            this.labelPrefix.clear();
+        }
 
         this.testSummary.setTotal(this.testCases.size());
         this.testSummary.setSuccess(this.countSuccess);
@@ -132,29 +171,47 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
     }
 
     private void sendHttp(SendReqData sendReqData) {
-        OkHttpClient client = new OkHttpClient();
 
-        // 构建请求体
-        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
         Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
-        String json = gson.toJson(sendReqData);
-        RequestBody requestBody = RequestBody.create(JSON, json);
 
-        // 构建请求
-        Request request = new Request.Builder().url(HttpBackendListener.SERVER_API.concat("/api/save_results")).post(requestBody).build();
+        HttpResponse<JsonNode> response = null;
 
-        // 发送请求并获取响应
         try {
-            Response response = client.newCall(request).execute();
-            String responseBody = response.body().string();
-            if (response.isSuccessful()) {
-                log.info("Send success：" + responseBody);
-            } else {
-                log.info("Send fail：" + responseBody);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+            response = Unirest.post(HttpBackendListener.SERVER_API.concat("/api/save_results"))
+                    .header("Content-Type", "application/json")
+                    .body(gson.toJson(sendReqData))
+                    .asJson();
+
+            log.info("数据发送成功：".concat(response.getBody().toString()));
+
+        } catch (UnirestException e) {
+            log.error("数据发送异常：".concat(e.getMessage()));
         }
+
+
+//        OkHttpClient client = new OkHttpClient();
+//
+//        // 构建请求体
+//        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+//        Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
+//        String json = gson.toJson(sendReqData);
+//        RequestBody requestBody = RequestBody.create(JSON, json);
+//
+//        // 构建请求
+//        Request request = new Request.Builder().url(HttpBackendListener.SERVER_API.concat("/api/save_results")).post(requestBody).build();
+//
+//        // 发送请求并获取响应
+//        try {
+//            Response response = client.newCall(request).execute();
+//            String responseBody = response.body().string();
+//            if (response.isSuccessful()) {
+//                log.info("Send success：" + responseBody);
+//            } else {
+//                log.info("Send fail：" + responseBody);
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
     }
 
     public Arguments getDefaultParameters() {
