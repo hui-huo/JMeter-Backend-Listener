@@ -103,7 +103,7 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
             }
 
         } else {
-            log.info("Scenario list: ".concat(this.scenarioList.toString()));
+            log.info("scenario list: ".concat(this.scenarioList.toString()));
 
             TestCaseInfo tc = new TestCaseInfo();
             HTTPSampleResult httpSampleResult = (HTTPSampleResult) sampleResult;
@@ -207,9 +207,9 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
 
     public Arguments getDefaultParameters() {
         Arguments arguments = new Arguments();
-        arguments.addArgument("server", "server url");
-        arguments.addArgument("name", "项目名称");
-        arguments.addArgument("env", "环境名称");
+        arguments.addArgument("host", "数据收集服务域名如：http://127.0.0.1:8080");
+        arguments.addArgument("name", "被测项目名称");
+        arguments.addArgument("env", "被测环境名称");
         return arguments;
     }
 }
