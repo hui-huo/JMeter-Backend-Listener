@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class HttpBackendListener extends AbstractBackendListenerClient {
@@ -37,9 +38,10 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
 
     private Integer countSuccess;
 
-    private List<String> labelPrefix;
+    private List<String> scenarioList;
 
-    private Integer currentDeep = 0;
+
+    private Integer currentDeep;
 
     @Override
     public void setupTest(BackendListenerContext context) {
@@ -48,7 +50,7 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
         HttpBackendListener.TEST_NAME = context.getParameter("name");
         HttpBackendListener.TEST_ENV = context.getParameter("env");
 
-        this.labelPrefix = new ArrayList<>();
+        this.scenarioList = new ArrayList<>();
         this.currentDeep = 0;
         this.testCases = new ArrayList<>();
         this.testSummary = new TestSummary();
@@ -88,7 +90,7 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
         Class<? extends SampleResult> aClass = sampleResult.getClass();
         if (!aClass.getName().contains("http.sampler")) {
             log.info("非http请求：" + sampleResult.getSampleLabel());
-            this.labelPrefix.add(sampleResult.getSampleLabel());
+            this.scenarioList.add(sampleResult.getSampleLabel());
             SampleResult[] subResults = sampleResult.getSubResults();
             if (subResults.length != 0) {
                 for (SampleResult result : subResults) {
@@ -101,18 +103,33 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
             }
 
         } else {
-            log.info("LabelPrefix: ".concat(this.labelPrefix.toString()));
+            log.info("Scenario list: ".concat(this.scenarioList.toString()));
+
             TestCaseInfo tc = new TestCaseInfo();
             HTTPSampleResult httpSampleResult = (HTTPSampleResult) sampleResult;
 
-            if (this.labelPrefix.size() != 0) {
-                String prefix = String.join("-", this.labelPrefix.subList(0, this.currentDeep));
-                tc.setCaseName(prefix.concat("-").concat(httpSampleResult.getSampleLabel()).toString());
-            } else {
-                tc.setCaseName(httpSampleResult.getSampleLabel());
+            if (this.scenarioList.size() != 0) {
+                // deep 获取当前节点以上的控制器名称
+                String scenarioName = String.join("-", this.scenarioList.subList(0, this.currentDeep));
+                tc.setScenarioName(scenarioName);
             }
 
-            tc.setModuleName(httpSampleResult.getThreadName().split(" ")[0]);
+            String threadName = httpSampleResult.getThreadName();
+            // 订单中心 1-1 去除线程编号
+            String[] splitName = threadName.split(" ");
+            ArrayList<String> nameList = new ArrayList<>(Arrays.asList(splitName));
+            nameList.remove(nameList.size() - 1);
+            String newName = String.join("", nameList);
+            // 上下文类型的测试覆盖场景名称
+            if (newName.contains("|")) {
+                String[] names = newName.split("\\|");
+                tc.setModuleName(names[0].trim());
+                tc.setScenarioName(names[1].trim());
+            } else {
+                tc.setModuleName(newName);
+            }
+
+            tc.setCaseName(httpSampleResult.getSampleLabel());
             tc.setStartTime(httpSampleResult.getStartTime());
             tc.setEndTime(httpSampleResult.getEndTime());
 
@@ -125,20 +142,20 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
             tc.setResponseHeader(httpSampleResult.getResponseHeaders());
             tc.setResponseBody(httpSampleResult.getResponseDataAsString());
 
-            tc.setTestResult(true);
+            tc.setSuccess(true);
             if (!(tc.getResponseCode().startsWith("2") || tc.getResponseCode().startsWith("3"))) {
-                tc.setTestResult(false);
+                tc.setSuccess(false);
             }
             AssertionResult[] assertionResults = httpSampleResult.getAssertionResults();
             StringBuilder sb = new StringBuilder();
             for (AssertionResult assertionResult : assertionResults) {
                 if (assertionResult.isFailure()) {
-                    tc.setTestResult(false);
+                    tc.setSuccess(false);
                     sb.append(assertionResult.getName()).append(": ").append(assertionResult.getFailureMessage()).append("\n");
                 }
             }
-            if (tc.getTestResult()) {
-                tc.setTestResult(true);
+            if (tc.getSuccess()) {
+//                tc.setSuccess(true);
                 this.countSuccess += 1;
             }
             tc.setFailMessage(sb.toString());
@@ -152,7 +169,7 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
     public void handleSampleResults(List<SampleResult> sampleResults, BackendListenerContext backendListenerContext) {
         for (SampleResult sampleResult : sampleResults) {
             handlerResult(sampleResult);
-            this.labelPrefix.clear();
+            this.scenarioList.clear();
         }
 
         this.testSummary.setTotal(this.testCases.size());
@@ -176,7 +193,7 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
         HttpResponse<JsonNode> response = null;
 
         try {
-            response = Unirest.post(HttpBackendListener.SERVER_API.concat("/api/save_results"))
+            response = Unirest.post(HttpBackendListener.SERVER_API.concat("/api/result/save"))
                     .header("Content-Type", "application/json")
                     .body(gson.toJson(sendReqData))
                     .asJson();

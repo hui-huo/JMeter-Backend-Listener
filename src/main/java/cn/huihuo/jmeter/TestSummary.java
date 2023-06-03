@@ -4,6 +4,7 @@ public class TestSummary {
     private String project;
     private String env;
     private Integer type;
+//    private Integer scenario;
     private Integer total;
     private Integer success;
     private Integer fail;
@@ -101,4 +102,12 @@ public class TestSummary {
     public void setDuration(Long duration) {
         this.duration = duration;
     }
+
+//    public Integer getScenario() {
+//        return scenario;
+//    }
+//
+//    public void setScenario(Integer scenario) {
+//        this.scenario = scenario;
+//    }
 }

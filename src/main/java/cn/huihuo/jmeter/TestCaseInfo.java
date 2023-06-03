@@ -1,6 +1,7 @@
 package cn.huihuo.jmeter;
 
 public class TestCaseInfo {
+    private String scenarioName;
     private String moduleName;
     private String caseName;
     private Long startTime;
@@ -12,7 +13,7 @@ public class TestCaseInfo {
     private String responseCode;
     private String responseHeader;
     private String responseBody;
-    private Boolean testResult;
+    private Boolean success;
     private String FailMessage;
 
     public String getModuleName() {
@@ -87,12 +88,12 @@ public class TestCaseInfo {
         this.responseBody = responseBody;
     }
 
-    public Boolean getTestResult() {
-        return testResult;
+    public Boolean getSuccess() {
+        return success;
     }
 
-    public void setTestResult(Boolean testResult) {
-        this.testResult = testResult;
+    public void setSuccess(Boolean success) {
+        this.success = success;
     }
 
     public String getFailMessage() {
@@ -125,5 +126,13 @@ public class TestCaseInfo {
 
     public void setRequestMethod(String requestMethod) {
         this.requestMethod = requestMethod;
+    }
+
+    public String getScenarioName() {
+        return scenarioName;
+    }
+
+    public void setScenarioName(String scenarioName) {
+        this.scenarioName = scenarioName;
     }
 }
