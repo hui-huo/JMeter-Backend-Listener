@@ -46,7 +46,7 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
     @Override
     public void setupTest(BackendListenerContext context) {
         log.info(" ---- Test Start ---- ");
-        HttpBackendListener.SERVER_API = context.getParameter("server");
+        HttpBackendListener.SERVER_API = context.getParameter("host");
         HttpBackendListener.TEST_NAME = context.getParameter("name");
         HttpBackendListener.TEST_ENV = context.getParameter("env");
 
