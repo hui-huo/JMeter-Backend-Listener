@@ -7,7 +7,7 @@
 
 
 ## 📌 使用
-1. 下载插件：[JMeter-Backend-Listener](https://github.com/hui-huo/JMeter-Backend-Listener/releases/tag/latest)
+1. 下载插件：[JMeter-Backend-Listener](https://github.com/hui-huo/JMeter-Backend-Listener/releases)
 2. 安装插件：jar文件放置在`{JMeter主目录}/lib/ext`下。
 3. 填写参数：
    ![image-20230420234719980](./listener.png)
