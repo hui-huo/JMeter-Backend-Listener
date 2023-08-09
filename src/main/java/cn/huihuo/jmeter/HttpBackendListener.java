@@ -180,7 +180,7 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
         } else {
             double i = (double) this.testSummary.getSuccess() / this.testSummary.getTotal();
             BigDecimal bd = new BigDecimal(i);
-            double rate = bd.setScale(2, RoundingMode.HALF_UP).doubleValue();
+            double rate = bd.setScale(4, RoundingMode.HALF_UP).doubleValue();
             this.testSummary.setPassRate(rate);
         }
         this.testSummary.setResult(this.testSummary.getFail() == 0);
