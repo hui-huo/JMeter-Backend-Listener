@@ -41,8 +41,6 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
     private List<String> scenarioList;
 
 
-    private Integer currentDeep;
-
     @Override
     public void setupTest(BackendListenerContext context) {
         log.info(" ---- Test Start ---- ");
@@ -51,7 +49,6 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
         HttpBackendListener.TEST_ENV = context.getParameter("env");
 
         this.scenarioList = new ArrayList<>();
-        this.currentDeep = 0;
         this.testCases = new ArrayList<>();
         this.testSummary = new TestSummary();
         this.countSuccess = 0;
@@ -94,10 +91,9 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
             SampleResult[] subResults = sampleResult.getSubResults();
             if (subResults.length != 0) {
                 for (SampleResult result : subResults) {
-                    this.currentDeep += 1;
                     handlerResult(result);
-                    this.currentDeep -= 1;
                 }
+                this.scenarioList.remove(this.scenarioList.size() - 1);
             } else {
                 log.info("非事务控制器：" + sampleResult.getSampleLabel());
             }
@@ -110,7 +106,7 @@ public class HttpBackendListener extends AbstractBackendListenerClient {
 
             if (this.scenarioList.size() != 0) {
                 // deep 获取当前节点以上的控制器名称
-                String scenarioName = String.join("-", this.scenarioList.subList(0, this.currentDeep));
+                String scenarioName = String.join("-", this.scenarioList);
                 tc.setScenarioName(scenarioName);
             }
 
